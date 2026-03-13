@@ -114,12 +114,18 @@
 
 ## 8. 与前端页面映射
 
-- pages/index.tsx：首页发现与场景入口
-- pages/recommend.tsx：AI推荐与对比
-- pages/map.tsx：学校锚点地图浏览
-- components/restaurantCard.tsx：候选餐厅卡片
-- components/mapView.tsx：地图渲染与筛选控件
-- services/api.ts：统一请求层
+- src/frontend/app/page.tsx：首页发现与场景入口
+- src/frontend/app/ai-pick/page.tsx：AI推荐与对比
+- src/frontend/app/map/page.tsx：学校锚点地图浏览
+- src/frontend/components/business/restaurantCard.tsx：候选餐厅卡片
+- src/frontend/components/business/mapView.tsx：地图渲染与筛选控件
+- src/frontend/lib/api.ts：统一请求层
+
+## 8.1 与后端接口映射
+
+- src/backend/api/restaurants.ts：餐厅列表与筛选接口
+- src/backend/api/recommend.ts：AI推荐接口
+- src/backend/api/summary.ts：评价摘要与推荐理由接口
 
 ## 9. 成功标准（V1 Demo）
 
