@@ -3,29 +3,28 @@ set -euo pipefail
 
 # ============================================================
 # University Food Map - 服务器部署脚本
-# 由 ship.sh 自动触发，或手动执行: bash deploy.sh
-# 前置条件: dist.tar.gz 已上传到本目录
+# 用法: bash deploy.sh
+# 前置条件: .next/ 已随代码 push 到 git
 # ============================================================
 
 # === 配置区 ===
 PROJECT_DIR="/var/www/UTFM"
-CURRENT_DIR="$PROJECT_DIR/current"
 DB_DIR="$PROJECT_DIR/db_data"
-TAR="$PROJECT_DIR/dist.tar.gz"
 APP_NAME="university-food-map"
+BRANCH="master"
 LOGFILE="/var/log/utfm_deploy.log"
-NGINX_CONF_SRC="$CURRENT_DIR/deploy/nginx.conf"
+NGINX_CONF_SRC="$PROJECT_DIR/deploy/nginx.conf"
 NGINX_CONF_DEST="/etc/nginx/sites-enabled/utfm.conf"
 
 echo -e "\033[0;32m=== 开始部署 University Food Map $(date) ===\033[0m" | tee -a "$LOGFILE"
 
-# ── Step 1: 检查产物包 ────────────────────────────────────────
-echo ">>> Step 1: 检查产物包..." | tee -a "$LOGFILE"
-if [ ! -f "$TAR" ]; then
-  echo "❌ 未找到 $TAR，请先在本地执行 bash ship.sh" | tee -a "$LOGFILE"
-  exit 1
-fi
-echo "✅ 找到产物包 $(du -sh "$TAR" | cut -f1)" | tee -a "$LOGFILE"
+# ── Step 1: 拉取最新代码（含 .next 产物）─────────────────────
+echo ">>> Step 1: 拉取代码..." | tee -a "$LOGFILE"
+cd "$PROJECT_DIR"
+git fetch --all
+git reset --hard origin/$BRANCH
+git clean -fd --exclude=.env --exclude=db_data/
+echo "✅ 代码已更新到 $(git rev-parse --short HEAD)" | tee -a "$LOGFILE"
 
 # ── Step 2: 检查 Node.js 20+ ──────────────────────────────────
 echo ">>> Step 2: 检查 Node.js..." | tee -a "$LOGFILE"
@@ -48,7 +47,7 @@ echo "✅ PM2 $(pm2 -v)" | tee -a "$LOGFILE"
 # ── Step 4: 检查 .env ─────────────────────────────────────────
 echo ">>> Step 4: 检查 .env..." | tee -a "$LOGFILE"
 if [ ! -f "$PROJECT_DIR/.env" ]; then
-  echo "⚠️  $PROJECT_DIR/.env 不存在，请创建后重试" | tee -a "$LOGFILE"
+  echo "❌ $PROJECT_DIR/.env 不存在，请创建后重试" | tee -a "$LOGFILE"
   echo ""
   echo "最小配置示例:"
   echo "  APP_PORT=8081"
@@ -56,7 +55,7 @@ if [ ! -f "$PROJECT_DIR/.env" ]; then
   echo "  NEXTAUTH_SECRET=$(openssl rand -base64 32)"
   exit 1
 fi
-# 确保 DATABASE_URL 指向持久目录（current/ 每次部署都会被覆盖）
+# 将 DATABASE_URL 固定指向持久目录（.next/ 每次 git reset 都会被覆盖）
 if grep -q '^DATABASE_URL=' "$PROJECT_DIR/.env"; then
   sed -i "s|^DATABASE_URL=.*|DATABASE_URL=file:$DB_DIR/prod.db|" "$PROJECT_DIR/.env"
 else
@@ -64,20 +63,19 @@ else
 fi
 echo "✅ .env 已就绪" | tee -a "$LOGFILE"
 
-# ── Step 5: 解压产物 ──────────────────────────────────────────
-echo ">>> Step 5: 解压产物到 $CURRENT_DIR ..." | tee -a "$LOGFILE"
-mkdir -p "$DB_DIR"
-rm -rf "$CURRENT_DIR"
-mkdir -p "$CURRENT_DIR"
-tar -xzf "$TAR" -C "$CURRENT_DIR"
-rm -f "$TAR"
-echo "✅ 产物已解压" | tee -a "$LOGFILE"
+# ── Step 5: 建立静态资源软链接 ────────────────────────────────
+# standalone server.js 以自身目录为 cwd，需要这两个路径存在
+echo ">>> Step 5: 建立静态资源软链接..." | tee -a "$LOGFILE"
+STANDALONE_DIR="$PROJECT_DIR/.next/standalone"
+ln -sfn "$PROJECT_DIR/.next/static"  "$STANDALONE_DIR/.next/static"
+ln -sfn "$PROJECT_DIR/public"        "$STANDALONE_DIR/public"
+echo "✅ 软链接已建立" | tee -a "$LOGFILE"
 
 # ── Step 6: 数据库迁移 ────────────────────────────────────────
 echo ">>> Step 6: 数据库迁移..." | tee -a "$LOGFILE"
-cd "$CURRENT_DIR"
-DATABASE_URL="file:$DB_DIR/prod.db" npx --yes prisma@5 migrate deploy
+mkdir -p "$DB_DIR"
 cd "$PROJECT_DIR"
+DATABASE_URL="file:$DB_DIR/prod.db" npx --yes prisma@5 migrate deploy
 echo "✅ 数据库迁移完成" | tee -a "$LOGFILE"
 
 # ── Step 7: PM2 重启 ──────────────────────────────────────────
@@ -99,7 +97,7 @@ if [ -f "$NGINX_CONF_SRC" ]; then
     systemctl reload nginx
     echo "✅ Nginx 已更新" | tee -a "$LOGFILE"
   else
-    echo "⚠️  Nginx 配置有误，跳过重载（服务仍在 PM2 上运行）" | tee -a "$LOGFILE"
+    echo "⚠️  Nginx 配置有误，跳过重载" | tee -a "$LOGFILE"
   fi
 else
   echo "⚠️  未找到 deploy/nginx.conf，跳过（直接通过端口访问亦可）" | tee -a "$LOGFILE"

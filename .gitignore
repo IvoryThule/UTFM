@@ -1,4 +1,6 @@
 node_modules
 .env
-.next
+.next/cache
+.next/standalone/.next/static
+.next/standalone/public
 dist.tar.gz

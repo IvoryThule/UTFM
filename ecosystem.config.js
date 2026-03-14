@@ -21,8 +21,10 @@ const PORT = env.APP_PORT || '3000';
 module.exports = {
   apps: [{
     name: 'university-food-map',
-    script: 'current/server.js',
-    cwd: __dirname,
+    // standalone server.js 使用自身 __dirname 解析 .next/ 路径，
+    // 因此必须以 standalone 目录为 cwd 运行
+    script: 'server.js',
+    cwd: path.join(__dirname, '.next/standalone'),
     autorestart: true,
     watch: false,
     max_memory_restart: '512M',
@@ -31,7 +33,6 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: PORT,
       HOSTNAME: '0.0.0.0',
-      // 数据库固定放在 db_data/，重新部署不丢失
       DATABASE_URL: `file:${__dirname}/db_data/prod.db`,
     }
   }]
