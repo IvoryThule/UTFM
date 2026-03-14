@@ -23,6 +23,8 @@ export interface Restaurant {
   lng: number;
   distances: WalkDistance[];
   coverImage?: string;
+  address?: string;
+  phone?: string;
 }
 
 export type Scene = "solo" | "date" | "group" | "late-night" | "budget";

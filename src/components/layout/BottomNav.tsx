@@ -17,6 +17,11 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // Hide on Detail Pages and AI Chat Page (which has its own input bar)
+  if (pathname.includes("/restaurant/") || pathname === "/ai-pick") {
+      return null;
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 w-full z-50 border-t border-gray-100 bg-white/95 backdrop-blur-lg pb-safe-bottom shadow-[0_-5px_10px_-5px_rgba(0,0,0,0.05)]">
       <ul className="flex justify-around items-center h-14 max-w-md mx-auto relative px-2">

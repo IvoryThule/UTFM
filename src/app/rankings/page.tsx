@@ -1,123 +1,144 @@
 "use client";
 
-import { Flame, Medal, Tag, TrendingUp, Trophy } from "lucide-react";
+import { Flame, Medal, TrendingUp, Trophy, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import RestaurantCard from "@/components/business/restaurantCard";
-import { restaurants } from "@/data/restaurants";
+import { useHomeData } from "@/hooks/useHomeData";
+import { useLocation } from "@/hooks/useLocation";
 import { cn } from "@/lib/utils";
 
 type RankingType = "hot" | "value" | "new";
 
-const RankingBadge = ({ rank }: { rank: number }) => {
-  if (rank === 1) return <div className="absolute top-0 right-0 bg-yellow-500 text-white rounded-bl-xl rounded-tr-xl px-3 py-1 text-xs font-bold shadow-sm z-10 font-DIN">TOP 1</div>;
-  if (rank === 2) return <div className="absolute top-0 right-0 bg-slate-400 text-white rounded-bl-xl rounded-tr-xl px-3 py-1 text-xs font-bold shadow-sm z-10 font-DIN">TOP 2</div>;
-  if (rank === 3) return <div className="absolute top-0 right-0 bg-orange-400 text-white rounded-bl-xl rounded-tr-xl px-3 py-1 text-xs font-bold shadow-sm z-10 font-DIN">TOP 3</div>;
-  return null;
-};
-
 export default function RankingsPage() {
   const [type, setType] = useState<RankingType>("hot");
+  const { location } = useLocation();
+  const { nearbyRestaurants, loading } = useHomeData(location);
 
   const list = useMemo(() => {
-    let data = [...restaurants];
+    // If no real data yet, return empty (loading state handles UI)
+    if (!nearbyRestaurants) return [];
+    
+    let data = [...nearbyRestaurants];
+    
+    // Sort logic
     if (type === "value") {
+      // Logic: Lower price is better
       data = data.sort((a, b) => a.avgPrice - b.avgPrice);
     } else if (type === "new") {
-       data = data.sort((a, b) => b.id.localeCompare(a.id));
+       // Mock logic for "new"
+       data = data.reverse(); 
     } else {
-      data = data.sort((a, b) => b.studentCount - a.studentCount);
+      // Hot: High rating
+      data = data.sort((a, b) => b.rating - a.rating);
     }
     return data.slice(0, 50);
-  }, [type]);
+  }, [type, nearbyRestaurants]);
 
   const top3 = list.slice(0, 3);
   const rest = list.slice(3);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-3 shadow-sm border-b border-gray-100">
         <div className="flex items-center justify-between">
             <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Trophy className="text-yellow-500 fill-yellow-500" size={20} />
                 美食榜单
             </h1>
+             <span className="text-xs text-gray-400">
+                {loading ? "更新中..." : `共 ${nearbyRestaurants.length} 上榜`}
+            </span>
         </div>
         
-        <div className="mt-4 flex gap-2 p-1 bg-gray-100 rounded-xl">
+        <div className="mt-3 flex gap-2 p-1 bg-gray-100 rounded-xl">
            <button 
                 onClick={() => setType("hot")}
                 className={cn(
-                    "flex-1 flex items-center justify-center gap-1 py-1.5 text-sm font-medium rounded-lg transition-all",
-                    type === "hot" ? "bg-white text-orange-600 shadow-sm scale-105" : "text-gray-500 hover:text-gray-900"
+                    "flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold rounded-lg transition-all",
+                    type === "hot" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 )}
            >
                <Flame size={14} className={cn(type === "hot" && "fill-orange-600")} />
-               热门榜
+               好评榜
            </button>
            <button 
                 onClick={() => setType("value")}
                 className={cn(
-                    "flex-1 flex items-center justify-center gap-1 py-1.5 text-sm font-medium rounded-lg transition-all",
-                    type === "value" ? "bg-white text-orange-600 shadow-sm scale-105" : "text-gray-500 hover:text-gray-900"
+                    "flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                    type === "value" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 )}
            >
-               <Tag size={14} className={cn(type === "value" && "fill-orange-600")} />
+               <Wallet size={14} className={cn(type === "value" && "fill-orange-600")} />
                性价比
            </button>
            <button 
                 onClick={() => setType("new")}
                 className={cn(
-                    "flex-1 flex items-center justify-center gap-1 py-1.5 text-sm font-medium rounded-lg transition-all",
-                    type === "new" ? "bg-white text-orange-600 shadow-sm scale-105" : "text-gray-500 hover:text-gray-900"
+                    "flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                    type === "new" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 )}
            >
                <TrendingUp size={14} />
-               新店榜
+               必吃榜
            </button>
         </div>
       </header>
 
       <div className="p-4 space-y-6">
-        {/* Top 3 */}
-        <div className="space-y-4">
-             {top3.map((item, index) => (
-                 <div key={item.id} className="relative group transition-transform hover:scale-[1.02]">
-                    <div className="absolute -left-1 -top-3 z-30 filter drop-shadow-md transition-transform group-hover:scale-110">
-                        {index === 0 && <Medal className="w-10 h-10 text-yellow-500 fill-yellow-100" />}
-                        {index === 1 && <Medal className="w-10 h-10 text-slate-400 fill-slate-100" />}
-                        {index === 2 && <Medal className="w-10 h-10 text-orange-400 fill-orange-100" />}
-                    </div>
-                    
-                    <RankingBadge rank={index + 1} />
-                    
-                    <RestaurantCard 
-                        restaurant={item} 
-                        universityId="pku" 
-                        className={cn(
-                            "border-2 relative z-0",
-                            index === 0 ? "bg-gradient-to-br from-yellow-50 via-white to-yellow-50/50 border-yellow-400/30 shadow-yellow-100" :
-                            index === 1 ? "bg-gradient-to-br from-slate-50 via-white to-slate-50/50 border-slate-300/30 shadow-slate-100" :
-                            "bg-gradient-to-br from-orange-50 via-white to-orange-50/50 border-orange-300/30 shadow-orange-100"
-                        )}
-                    />
-                 </div>
-             ))}
-        </div>
+        {loading && (
+             <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                <p className="text-xs">正在计算排名...</p>
+             </div>
+        )}
 
-        {/* Rest of list */}
-        <div className="space-y-2">
-             {rest.map((item, index) => (
-                 <div key={item.id} className="flex gap-2 items-center group">
-                    <div className="flex flex-col items-center justify-center w-8 shrink-0">
-                        <span className="text-xl font-bold font-DIN text-gray-300 italic group-hover:text-orange-400 transition-colors">{index + 4}</span>
-                    </div>
-                    <div className="flex-1">
-                        <RestaurantCard restaurant={item} universityId="pku" />
-                    </div>
-                 </div>
-             ))}
-        </div>
+        {/* Top 3 */}
+        {!loading && top3.length > 0 && (
+            <div className="space-y-4">
+                 {top3.map((item, index) => (
+                     <Link key={item.id} href={`/restaurant/${item.id}`} className="block relative group transition-transform hover:scale-[1.01]">
+                        <div className="absolute -left-1 -top-3 z-30 filter drop-shadow-md">
+                            {index === 0 && <Medal className="w-8 h-8 text-yellow-500 fill-yellow-100" />}
+                            {index === 1 && <Medal className="w-8 h-8 text-slate-400 fill-slate-100" />}
+                            {index === 2 && <Medal className="w-8 h-8 text-orange-400 fill-orange-100" />}
+                        </div>
+                        
+                        <RestaurantCard 
+                            restaurant={item} 
+                            universityId="current"
+                            className={cn(
+                                "border-2 relative z-0 pointer-events-none",
+                                index === 0 ? "bg-gradient-to-br from-yellow-50 via-white to-yellow-50/50 border-yellow-400/30 shadow-yellow-100" :
+                                index === 1 ? "bg-gradient-to-br from-slate-50 via-white to-slate-50/50 border-slate-300/30 shadow-slate-100" :
+                                "bg-gradient-to-br from-orange-50 via-white to-orange-50/50 border-orange-300/30 shadow-orange-100"
+                            )} 
+                        />
+                     </Link>
+                 ))}
+            </div>
+        )}
+
+        {/* Rest List */}
+        {!loading && rest.length > 0 && (
+            <div className="space-y-3 pt-2">
+                 <h2 className="text-sm font-bold text-gray-900">第 4 - {list.length} 名</h2>
+                 {rest.map((item, index) => (
+                     <Link key={item.id} href={`/restaurant/${item.id}`} className="block flex gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100 items-center">
+                        <span className="font-bold text-lg text-gray-300 font-mono w-6 text-center">{index + 4}</span>
+                        <div className="flex-1">
+                            <h3 className="font-bold text-gray-900 line-clamp-1">{item.name}</h3>
+                            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                <span className="text-orange-600 font-bold">{item.rating}分</span>
+                                <span>¥{item.avgPrice}/人</span>
+                                <span className="ml-auto">{item.category}</span>
+                            </div>
+                        </div>
+                     </Link>
+                 ))}
+            </div>
+        )}
       </div>
     </div>
   );
