@@ -1,176 +1,116 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 # ============================================================
 # University Food Map - 服务器部署脚本
-# 用法 A（上传产物部署）: bash ship.sh  （自动触发）
-# 用法 B（服务器源码构建）: bash deploy.sh
+# 由 ship.sh 自动触发，或手动执行: bash deploy.sh
+# 前置条件: dist.tar.gz 已上传到本目录
 # ============================================================
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+# === 配置区 ===
+PROJECT_DIR="/var/www/UTFM"
+CURRENT_DIR="$PROJECT_DIR/current"
+DB_DIR="$PROJECT_DIR/db_data"
+TAR="$PROJECT_DIR/dist.tar.gz"
+APP_NAME="university-food-map"
+LOGFILE="/var/log/utfm_deploy.log"
+NGINX_CONF_SRC="$CURRENT_DIR/deploy/nginx.conf"
+NGINX_CONF_DEST="/etc/nginx/sites-enabled/utfm.conf"
 
-log_info()  { echo -e "${BLUE}[INFO]${NC}  $1"; }
-log_ok()    { echo -e "${GREEN}[OK]${NC}    $1"; }
-log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-hr() { echo -e "${BLUE}────────────────────────────────────────${NC}"; }
+echo -e "\033[0;32m=== 开始部署 University Food Map $(date) ===\033[0m" | tee -a "$LOGFILE"
 
-IMAGE_NAME="university-food-map"
-TAR_FILE="dist.tar.gz"
-
-# ── 0. 检查运行环境 ──────────────────────────────────────────
-hr
-log_info "检查运行环境..."
-
-if [ "$(id -u)" -ne 0 ]; then
-  log_error "请使用 root 用户运行此脚本 (或 sudo bash deploy.sh)"
+# ── Step 1: 检查产物包 ────────────────────────────────────────
+echo ">>> Step 1: 检查产物包..." | tee -a "$LOGFILE"
+if [ ! -f "$TAR" ]; then
+  echo "❌ 未找到 $TAR，请先在本地执行 bash ship.sh" | tee -a "$LOGFILE"
   exit 1
 fi
+echo "✅ 找到产物包 $(du -sh "$TAR" | cut -f1)" | tee -a "$LOGFILE"
 
-for cmd in docker openssl; do
-  if ! command -v "$cmd" &>/dev/null; then
-    log_error "未找到命令: $cmd，请先安装"
-    exit 1
-  fi
-done
+# ── Step 2: 检查 Node.js 20+ ──────────────────────────────────
+echo ">>> Step 2: 检查 Node.js..." | tee -a "$LOGFILE"
+NODE_MAJOR=$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1 || echo "0")
+if [ "$NODE_MAJOR" -lt 20 ]; then
+  echo "Node.js 版本不足 (当前: $(node -v 2>/dev/null || echo '未安装'))，安装 Node.js 20..." | tee -a "$LOGFILE"
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y nodejs
+fi
+echo "✅ Node.js $(node -v)" | tee -a "$LOGFILE"
 
-if docker compose version &>/dev/null 2>&1; then
-  COMPOSE="docker compose"
-elif command -v docker-compose &>/dev/null; then
-  COMPOSE="docker-compose"
-else
-  log_error "未找到 docker compose / docker-compose，请先安装"
+# ── Step 3: 检查 PM2 ──────────────────────────────────────────
+echo ">>> Step 3: 检查 PM2..." | tee -a "$LOGFILE"
+if ! command -v pm2 >/dev/null; then
+  echo "安装 PM2..." | tee -a "$LOGFILE"
+  npm install -g pm2
+fi
+echo "✅ PM2 $(pm2 -v)" | tee -a "$LOGFILE"
+
+# ── Step 4: 检查 .env ─────────────────────────────────────────
+echo ">>> Step 4: 检查 .env..." | tee -a "$LOGFILE"
+if [ ! -f "$PROJECT_DIR/.env" ]; then
+  echo "⚠️  $PROJECT_DIR/.env 不存在，请创建后重试" | tee -a "$LOGFILE"
+  echo ""
+  echo "最小配置示例:"
+  echo "  APP_PORT=8081"
+  echo "  NEXTAUTH_URL=http://<服务器IP>:8081"
+  echo "  NEXTAUTH_SECRET=$(openssl rand -base64 32)"
   exit 1
 fi
-
-# ── 判断部署模式 ─────────────────────────────────────────────
-if [ -f "$TAR_FILE" ]; then
-  DEPLOY_MODE="dist"
-  log_ok "模式: 加载上传的产物包 (${TAR_FILE})"
+# 确保 DATABASE_URL 指向持久目录（current/ 每次部署都会被覆盖）
+if grep -q '^DATABASE_URL=' "$PROJECT_DIR/.env"; then
+  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=file:$DB_DIR/prod.db|" "$PROJECT_DIR/.env"
 else
-  DEPLOY_MODE="build"
-  log_ok "模式: 服务器源码构建"
+  echo "DATABASE_URL=file:$DB_DIR/prod.db" >> "$PROJECT_DIR/.env"
 fi
+echo "✅ .env 已就绪" | tee -a "$LOGFILE"
 
-# ── 1. 拉取最新代码（仅源码构建模式）────────────────────────
-if [ "$DEPLOY_MODE" = "build" ]; then
-  hr
-  log_info "拉取最新代码..."
-  git fetch --all
-  git reset --hard origin/$(git rev-parse --abbrev-ref HEAD)
-  log_ok "代码已更新"
-fi
+# ── Step 5: 解压产物 ──────────────────────────────────────────
+echo ">>> Step 5: 解压产物到 $CURRENT_DIR ..." | tee -a "$LOGFILE"
+mkdir -p "$DB_DIR"
+rm -rf "$CURRENT_DIR"
+mkdir -p "$CURRENT_DIR"
+tar -xzf "$TAR" -C "$CURRENT_DIR"
+rm -f "$TAR"
+echo "✅ 产物已解压" | tee -a "$LOGFILE"
 
-# ── 2. 配置 .env ─────────────────────────────────────────────
-hr
-log_info "检查 .env 配置..."
+# ── Step 6: 数据库迁移 ────────────────────────────────────────
+echo ">>> Step 6: 数据库迁移..." | tee -a "$LOGFILE"
+cd "$CURRENT_DIR"
+DATABASE_URL="file:$DB_DIR/prod.db" npx --yes prisma@5 migrate deploy
+cd "$PROJECT_DIR"
+echo "✅ 数据库迁移完成" | tee -a "$LOGFILE"
 
-if [ ! -f .env ]; then
-  log_warn ".env 不存在，从 .env.example 创建..."
-  cp .env.example .env
-fi
-
-APP_PORT=$(grep -E '^APP_PORT=' .env | cut -d= -f2 | tr -d '"' || echo "")
-NEXTAUTH_URL_VAL=$(grep -E '^NEXTAUTH_URL=' .env | cut -d= -f2 | tr -d '"' || echo "")
-NEXTAUTH_SECRET_VAL=$(grep -E '^NEXTAUTH_SECRET=' .env | cut -d= -f2 | tr -d '"' || echo "")
-
-if [ -z "$APP_PORT" ]; then
-  read -rp "  应用端口 [默认 8081]: " input_port
-  APP_PORT="${input_port:-8081}"
-  sed -i "s|^APP_PORT=.*|APP_PORT=${APP_PORT}|" .env 2>/dev/null || echo "APP_PORT=${APP_PORT}" >> .env
-fi
-
-if [ -z "$NEXTAUTH_URL_VAL" ] || echo "$NEXTAUTH_URL_VAL" | grep -q "localhost"; then
-  SERVER_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || curl -s --max-time 3 api.ipify.org 2>/dev/null || echo "")
-  DEFAULT_URL="http://${SERVER_IP:-localhost}:${APP_PORT}"
-  read -rp "  NEXTAUTH_URL [默认 ${DEFAULT_URL}]: " input_url
-  NEXTAUTH_URL_VAL="${input_url:-$DEFAULT_URL}"
-  sed -i "s|^NEXTAUTH_URL=.*|NEXTAUTH_URL=${NEXTAUTH_URL_VAL}|" .env 2>/dev/null || echo "NEXTAUTH_URL=${NEXTAUTH_URL_VAL}" >> .env
-fi
-
-if [ -z "$NEXTAUTH_SECRET_VAL" ] || [ "$NEXTAUTH_SECRET_VAL" = "changeme" ]; then
-  log_info "自动生成 NEXTAUTH_SECRET..."
-  NEW_SECRET=$(openssl rand -base64 32)
-  sed -i "s|^NEXTAUTH_SECRET=.*|NEXTAUTH_SECRET=${NEW_SECRET}|" .env 2>/dev/null || echo "NEXTAUTH_SECRET=${NEW_SECRET}" >> .env
-  log_ok "NEXTAUTH_SECRET 已生成"
-fi
-
-if ! grep -q '^DATABASE_URL=' .env; then
-  echo "DATABASE_URL=file:/app/db/prod.db" >> .env
-fi
-
-log_ok ".env 配置完成"
-echo ""
-cat .env
-echo ""
-
-# ── 3. 构建 Docker 镜像 ──────────────────────────────────────
-hr
-if [ "$DEPLOY_MODE" = "dist" ]; then
-  log_info "从产物包构建运行时镜像..."
-  STAGING_DIR=".dist_staging"
-  rm -rf "$STAGING_DIR"
-  mkdir -p "$STAGING_DIR"
-  tar -xzf "$TAR_FILE" -C "$STAGING_DIR"
-  docker build -t "$IMAGE_NAME" -f Dockerfile.runtime "$STAGING_DIR"
-  rm -rf "$STAGING_DIR" "$TAR_FILE"
-  log_ok "运行时镜像构建成功，已清理临时文件"
+# ── Step 7: PM2 重启 ──────────────────────────────────────────
+echo ">>> Step 7: 重启服务 (PM2)..." | tee -a "$LOGFILE"
+if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
+  pm2 reload "$PROJECT_DIR/ecosystem.config.js" --update-env
 else
-  log_info "从源码构建 Docker 镜像（首次可能需要 3-5 分钟）..."
-  docker build -t "$IMAGE_NAME" .
-  log_ok "镜像构建成功"
+  pm2 start "$PROJECT_DIR/ecosystem.config.js"
+  pm2 startup systemd -u root --hp /root 2>/dev/null || true
 fi
+pm2 save
+echo "✅ 服务已启动" | tee -a "$LOGFILE"
 
-# ── 4. 停止旧容器 ────────────────────────────────────────────
-hr
-log_info "停止旧容器..."
-$COMPOSE down --remove-orphans 2>/dev/null || true
-log_ok "旧容器已停止"
-
-# ── 5. 数据库迁移 ────────────────────────────────────────────
-hr
-log_info "执行 Prisma 数据库迁移..."
-mkdir -p ./db_data
-
-docker run --rm \
-  -v "$(pwd)/db_data:/app/db" \
-  -e DATABASE_URL=file:/app/db/prod.db \
-  "$IMAGE_NAME" \
-  npx prisma migrate deploy
-
-log_ok "数据库迁移完成"
-
-# ── 6. 启动服务 ──────────────────────────────────────────────
-hr
-log_info "启动服务..."
-$COMPOSE up -d
-log_ok "服务已启动"
-
-# ── 7. 等待并检查健康状态 ────────────────────────────────────
-hr
-log_info "等待服务就绪（最多 30 秒）..."
-APP_PORT_NUM=$(grep -E '^APP_PORT=' .env | cut -d= -f2 | tr -d '"')
-APP_PORT_NUM="${APP_PORT_NUM:-8081}"
-
-for i in $(seq 1 15); do
-  if curl -sf "http://localhost:${APP_PORT_NUM}" >/dev/null 2>&1; then
-    log_ok "服务已就绪！"
-    break
+# ── Step 8: Nginx 配置（可选）────────────────────────────────
+echo ">>> Step 8: Nginx 配置..." | tee -a "$LOGFILE"
+if [ -f "$NGINX_CONF_SRC" ]; then
+  ln -sf "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"
+  if nginx -t 2>/dev/null; then
+    systemctl reload nginx
+    echo "✅ Nginx 已更新" | tee -a "$LOGFILE"
+  else
+    echo "⚠️  Nginx 配置有误，跳过重载（服务仍在 PM2 上运行）" | tee -a "$LOGFILE"
   fi
-  echo -n "."
-  sleep 2
-done
-echo ""
+else
+  echo "⚠️  未找到 deploy/nginx.conf，跳过（直接通过端口访问亦可）" | tee -a "$LOGFILE"
+fi
 
-# ── 8. 完成 ──────────────────────────────────────────────────
-hr
-FINAL_URL=$(grep -E '^NEXTAUTH_URL=' .env | cut -d= -f2 | tr -d '"')
-echo -e "${GREEN}"
-echo "  ✓ 部署成功！"
-echo "  ✓ 访问地址: ${FINAL_URL}"
-echo -e "${NC}"
-hr
-log_info "查看实时日志: $COMPOSE logs -f"
-log_info "停止服务:     $COMPOSE down"
-log_info "重启服务:     $COMPOSE restart"
-hr
+# ── 完成 ──────────────────────────────────────────────────────
+APP_PORT=$(grep -E '^APP_PORT=' "$PROJECT_DIR/.env" | cut -d= -f2 | tr -d '"' || echo "3000")
+echo -e "\033[0;32m=== 部署完成 $(date) ===\033[0m" | tee -a "$LOGFILE"
+echo ""
+pm2 status "$APP_NAME"
+echo ""
+echo "访问地址: http://$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo 'localhost'):${APP_PORT}"
+echo "查看日志: pm2 logs $APP_NAME"
+echo "重启服务: pm2 restart $APP_NAME"
