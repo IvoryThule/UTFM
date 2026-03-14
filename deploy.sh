@@ -45,7 +45,8 @@ log_ok "环境检查通过 (compose: $COMPOSE)"
 # ── 1. 拉取最新代码 ──────────────────────────────────────────
 hr
 log_info "拉取最新代码..."
-git pull
+git fetch --all
+git reset --hard origin/$(git rev-parse --abbrev-ref HEAD)
 log_ok "代码已更新"
 
 # ── 2. 配置 .env ─────────────────────────────────────────────
