@@ -1,0 +1,23 @@
+FROM node:20-slim
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# 拷贝本地构建的 standalone 产物（由 deploy.sh 解压后传入）
+COPY --chown=nextjs:nodejs . .
+
+RUN mkdir -p /app/db && chown -R nextjs:nodejs /app/db
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

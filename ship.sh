@@ -14,11 +14,9 @@ log_ok()    { echo -e "${GREEN}[OK]${NC}    $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 hr() { echo -e "${BLUE}────────────────────────────────────────${NC}"; }
 
-# ── 参数配置 ─────────────────────────────────────────────────
 SERVER="${1:-root@1.14.207.212}"
 REMOTE_PATH="${2:-/var/www/UTFM}"
-IMAGE_NAME="university-food-map"
-TAR_FILE="${IMAGE_NAME}.tar.gz"
+TAR_FILE="dist.tar.gz"
 
 hr
 log_info "目标服务器: ${SERVER}:${REMOTE_PATH}"
@@ -26,7 +24,7 @@ log_info "目标服务器: ${SERVER}:${REMOTE_PATH}"
 # ── 0. 检查本地依赖 ──────────────────────────────────────────
 hr
 log_info "检查本地环境..."
-for cmd in docker scp ssh; do
+for cmd in node npm scp ssh; do
   if ! command -v "$cmd" &>/dev/null; then
     log_error "未找到命令: $cmd，请先安装"
     exit 1
@@ -34,27 +32,51 @@ for cmd in docker scp ssh; do
 done
 log_ok "本地环境检查通过"
 
-# ── 1. 本地构建 Docker 镜像 ─────────────────────────────────
+# ── 1. 安装依赖（如有变更）──────────────────────────────────
 hr
-log_info "本地构建 Docker 镜像..."
-docker build -t "$IMAGE_NAME" .
-log_ok "镜像构建成功"
+log_info "检查依赖..."
+npm install
+log_ok "依赖已就绪"
 
-# ── 2. 导出镜像为压缩包 ──────────────────────────────────────
+# ── 2. 本地构建 ──────────────────────────────────────────────
 hr
-log_info "导出镜像（可能需要约 1 分钟）..."
-docker save "$IMAGE_NAME" | gzip > "/tmp/${TAR_FILE}"
-SIZE=$(du -sh "/tmp/${TAR_FILE}" | cut -f1)
-log_ok "镜像打包完成，大小: ${SIZE}"
+log_info "本地构建 Next.js（含 Linux Prisma 二进制）..."
+npm run build
+log_ok "构建成功"
 
-# ── 3. 上传到服务器 ──────────────────────────────────────────
+# ── 3. 打包 standalone 产物 ──────────────────────────────────
 hr
-log_info "上传镜像到服务器..."
-scp "/tmp/${TAR_FILE}" "${SERVER}:${REMOTE_PATH}/${TAR_FILE}"
-rm "/tmp/${TAR_FILE}"
+log_info "打包产物..."
+
+DIST_WORK=$(mktemp -d)
+
+# 将 standalone 输出解压到临时目录（作为根目录）
+cp -r .next/standalone/. "$DIST_WORK/"
+
+# 静态资源必须放在这个位置
+mkdir -p "$DIST_WORK/.next"
+cp -r .next/static "$DIST_WORK/.next/static"
+
+# public 目录
+cp -r public "$DIST_WORK/public"
+
+# prisma 迁移文件（服务器启动时需要）
+cp -r prisma "$DIST_WORK/prisma"
+
+tar -czf "$TAR_FILE" -C "$DIST_WORK" .
+rm -rf "$DIST_WORK"
+
+SIZE=$(du -sh "$TAR_FILE" | cut -f1)
+log_ok "打包完成，大小: ${SIZE}"
+
+# ── 4. 上传到服务器 ──────────────────────────────────────────
+hr
+log_info "上传产物到服务器..."
+scp "$TAR_FILE" "${SERVER}:${REMOTE_PATH}/${TAR_FILE}"
+rm -f "$TAR_FILE"
 log_ok "上传完成"
 
-# ── 4. 远程执行部署 ──────────────────────────────────────────
+# ── 5. 远程执行部署 ──────────────────────────────────────────
 hr
 log_info "触发服务器部署..."
 ssh "$SERVER" "cd ${REMOTE_PATH} && bash deploy.sh"

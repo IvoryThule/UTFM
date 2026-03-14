@@ -3,8 +3,8 @@ set -e
 
 # ============================================================
 # University Food Map - 服务器部署脚本
-# 用法 A（在服务器构建）: bash deploy.sh
-# 用法 B（加载本地上传的镜像）: bash ship.sh  （自动触发）
+# 用法 A（上传产物部署）: bash ship.sh  （自动触发）
+# 用法 B（服务器源码构建）: bash deploy.sh
 # ============================================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -16,7 +16,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 hr() { echo -e "${BLUE}────────────────────────────────────────${NC}"; }
 
 IMAGE_NAME="university-food-map"
-TAR_FILE="${IMAGE_NAME}.tar.gz"
+TAR_FILE="dist.tar.gz"
 
 # ── 0. 检查运行环境 ──────────────────────────────────────────
 hr
@@ -43,21 +43,13 @@ else
   exit 1
 fi
 
-log_ok "环境检查通过 (compose: $COMPOSE)"
-
 # ── 判断部署模式 ─────────────────────────────────────────────
 if [ -f "$TAR_FILE" ]; then
-  DEPLOY_MODE="load"
-  log_info "模式: 加载预构建镜像 (${TAR_FILE})"
+  DEPLOY_MODE="dist"
+  log_ok "模式: 加载上传的产物包 (${TAR_FILE})"
 else
   DEPLOY_MODE="build"
-  log_info "模式: 从源码构建"
-  for cmd in git; do
-    if ! command -v "$cmd" &>/dev/null; then
-      log_error "未找到命令: $cmd，请先安装"
-      exit 1
-    fi
-  done
+  log_ok "模式: 服务器源码构建"
 fi
 
 # ── 1. 拉取最新代码（仅源码构建模式）────────────────────────
@@ -112,15 +104,19 @@ echo ""
 cat .env
 echo ""
 
-# ── 3. 获取 Docker 镜像 ──────────────────────────────────────
+# ── 3. 构建 Docker 镜像 ──────────────────────────────────────
 hr
-if [ "$DEPLOY_MODE" = "load" ]; then
-  log_info "加载预构建镜像..."
-  docker load < "$TAR_FILE"
-  rm -f "$TAR_FILE"
-  log_ok "镜像加载成功，已删除 tar 包"
+if [ "$DEPLOY_MODE" = "dist" ]; then
+  log_info "从产物包构建运行时镜像..."
+  STAGING_DIR=".dist_staging"
+  rm -rf "$STAGING_DIR"
+  mkdir -p "$STAGING_DIR"
+  tar -xzf "$TAR_FILE" -C "$STAGING_DIR"
+  docker build -t "$IMAGE_NAME" -f Dockerfile.runtime "$STAGING_DIR"
+  rm -rf "$STAGING_DIR" "$TAR_FILE"
+  log_ok "运行时镜像构建成功，已清理临时文件"
 else
-  log_info "构建 Docker 镜像（首次可能需要 3-5 分钟）..."
+  log_info "从源码构建 Docker 镜像（首次可能需要 3-5 分钟）..."
   docker build -t "$IMAGE_NAME" .
   log_ok "镜像构建成功"
 fi
