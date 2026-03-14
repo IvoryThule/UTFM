@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertCircle, ChevronRight, Heart, Map, Settings, User, LogOut, Coffee } from "lucide-react";
+import { AlertCircle, ChevronRight, Coffee, Heart, LogOut, Map, Settings, User } from "lucide-react";
 import Link from "next/link";
-import { useUser } from "@/hooks/useUser";
 import { useEffect, useState } from "react";
+
+import { useUser } from "@/hooks/useUser";
 
 export default function ProfilePage() {
     const { user, userId, username, level, avatar, resetUser } = useUser();
@@ -32,6 +33,7 @@ export default function ProfilePage() {
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center border-4 border-white shadow-sm shrink-0 overflow-hidden">
                             {avatar ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 <User className="w-8 h-8 text-orange-500" />

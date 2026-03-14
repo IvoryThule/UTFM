@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface GeoLocation {
   lat: number;
@@ -21,13 +21,14 @@ export function useLocation() {
     }
 
     // Try AMap Geolocation plugin if available (more accurate in China)
-    const tryAmapLocation = () => {
+    const getAmapLocation = () => {
       if (window.AMap && window.AMap.Geolocation) {
         const geolocation = new window.AMap.Geolocation({
           enableHighAccuracy: true,
           timeout: 10000,
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         geolocation.getCurrentPosition((status: string, result: any) => {
           if (status === "complete") {
             setLocation({
@@ -39,20 +40,20 @@ export function useLocation() {
             setLoading(false);
           } else {
             console.warn("AMap location failed, falling back to browser API");
-            useBrowserLocation();
+            getBrowserLocation();
           }
         });
       } else {
         // AMap not loaded yet or plugin missing, wait or use browser
         if (window.AMap) {
-             window.AMap.plugin('AMap.Geolocation', tryAmapLocation);
+             window.AMap.plugin('AMap.Geolocation', getAmapLocation);
         } else {
-             useBrowserLocation();
+             getBrowserLocation();
         }
       }
     };
 
-    const useBrowserLocation = () => {
+    const getBrowserLocation = () => {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setLocation({
@@ -75,7 +76,7 @@ export function useLocation() {
       );
     };
 
-    tryAmapLocation();
+    getAmapLocation();
   }, []);
 
   return { location, error, loading };

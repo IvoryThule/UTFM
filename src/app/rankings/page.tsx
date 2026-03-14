@@ -1,8 +1,8 @@
 "use client";
 
 import { Flame, Medal, TrendingUp, Trophy, Wallet } from "lucide-react";
-import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 
 import RestaurantCard from "@/components/business/restaurantCard";
 import { useHomeData } from "@/hooks/useHomeData";

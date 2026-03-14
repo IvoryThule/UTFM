@@ -1,10 +1,12 @@
 "use client";
 
-import { useUser } from "@/hooks/useUser";
+
 import { ArrowLeft, Lock, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+import { useUser } from "@/hooks/useUser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +34,7 @@ export default function LoginPage() {
       const data = await res.json();
       login(data.user);
       router.push("/profile");
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setError("Invalid username or password");
     } finally {
       setLoading(false);
@@ -92,7 +94,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-8 text-center text-xs text-gray-400">
-            Don't have an account? <Link href="/register" className="text-orange-500 font-bold hover:underline">Register now</Link>
+            Don&apos;t have an account? <Link href="/register" className="text-orange-500 font-bold hover:underline">Register now</Link>
         </p>
       </div>
     </div>

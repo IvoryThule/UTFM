@@ -23,7 +23,7 @@ export default function MyFootprintsPage() {
                              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                                  <span className="text-[10px] text-gray-400 mb-1 block">2023-10-0{i} 12:30</span>
                                  <h3 className="text-sm font-bold text-gray-900">必胜客 (光谷店)</h3>
-                                 <p className="text-xs text-gray-500 mt-1">打卡成功！获得 "披萨达人" 徽章</p>
+                                 <p className="text-xs text-gray-500 mt-1">打卡成功！获得 &quot;披萨达人&quot; 徽章</p>
                              </div>
                          </div>
                      ))}

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { MapPin } from "lucide-react";
+import { useState } from "react";
 
 import MapView from "@/components/business/mapView";
 import { categoryOptions } from "@/data/categories";
-import { useLocation } from "@/hooks/useLocation";
 import { useHomeData } from "@/hooks/useHomeData";
+import { useLocation } from "@/hooks/useLocation";
 
 export default function MapPage() {
 	const [category, setCategory] = useState<string>("");

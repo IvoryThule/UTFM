@@ -1,9 +1,10 @@
 "use client";
 
-import { useUser } from "@/hooks/useUser";
 import { ArrowLeft, Clock, Heart, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { useUser } from "@/hooks/useUser";
 import { Restaurant } from "@/types";
 
 export default function MyFavoritesPage() {

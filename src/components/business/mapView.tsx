@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import type { Restaurant } from "@/types";
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     AMap: any;
   }
 }
@@ -18,6 +20,7 @@ interface MapViewProps {
 
 export default function MapView({ restaurants, universityId, category }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,6 +76,7 @@ export default function MapView({ restaurants, universityId, category }: MapView
 
     mapInstance.clearMap(); // Clear existing markers
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const markers: any[] = [];
 
     filtered.forEach((r) => {

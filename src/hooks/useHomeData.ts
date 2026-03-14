@@ -2,11 +2,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { GeoLocation } from "./useLocation";
+
 import type { Restaurant } from "@/types";
+import type { GeoLocation } from "./useLocation";
 
 export function useHomeData(location: GeoLocation | null) {
   const [nearbyRestaurants, setNearbyRestaurants] = useState<Restaurant[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -26,8 +28,10 @@ export function useHomeData(location: GeoLocation | null) {
             extensions: 'base'
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         placeSearchUni.searchNearBy('', [location.lng, location.lat], 5000, (status: string, result: any) => {
             if (status === 'complete' && result.poiList) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const schools = result.poiList.pois.map((poi: any) => ({
                     id: poi.id,
                     name: poi.name,
@@ -63,8 +67,10 @@ export function useHomeData(location: GeoLocation | null) {
              extensions: 'all' 
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         placeSearchRest.searchNearBy('', [location.lng, location.lat], 2000, (status: string, result: any) => {
              if (status === 'complete' && result.poiList) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                  const mapped: Restaurant[] = result.poiList.pois.map((poi: any) => {
                        // Heuristic Fallbacks for missing real data
                        const idSum = poi.id.split('').reduce((acc:number, char:string) => acc + char.charCodeAt(0), 0);

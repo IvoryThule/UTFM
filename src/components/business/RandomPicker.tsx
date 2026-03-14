@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Play, Plus, RefreshCw, Settings2, Store, Trash2, Utensils, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import { cn } from "@/lib/utils";
-import { Utensils, Store, Play, Plus, Trash2, Settings2, X, RefreshCw } from "lucide-react";
 
 // Default entries if local storage is empty
 const DEFAULT_FOOD_ENTRIES = ["盖饭", "面馆", "米线", "炒菜", "火锅", "烤肉", "日料", "轻食", "汉堡", "麻辣烫"];

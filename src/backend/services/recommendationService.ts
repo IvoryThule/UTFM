@@ -1,16 +1,18 @@
-import { ChatOpenAI } from "@langchain/openai";
-import { PromptTemplate } from "@langchain/core/prompts";
 import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
+import { ChatOpenAI } from "@langchain/openai";
 // import { prisma } from "@/lib/prisma"; // Removed to avoid dependency on DB if not set up
 
 export async function getRecommendations(
     userInput: string, 
     universityId: string, 
     location?: { lat: number, lng: number }, 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     contextData?: any[]
 ) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let restaurantData: any[] = [];
 
     // 1. Prepare Data Context

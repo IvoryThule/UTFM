@@ -1,45 +1,47 @@
 "use client";
 
-import { ArrowLeft, MapPin, Phone, Star, Clock, Utensils, Share2, Heart, MessageSquare } from "lucide-react";
+import { ArrowLeft, Clock, Heart, MapPin, MessageSquare, Phone, Share2, Star, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Restaurant } from "@/types";
 
 interface RestaurantDetailPageProps {
-	params: {
-		id: string;
-	};
+    params: {
+        id: string;
+    };
 }
 
 export default function RestaurantDetailPage({ params }: RestaurantDetailPageProps) {
-	const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [reviews, setReviews] = useState<any[]>([]);
-	const [newReview, setNewReview] = useState("");
-	const [submitting, setSubmitting] = useState(false);
+    const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [newReview, setNewReview] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
-	// Fetch Restaurant Data
-	useEffect(() => {
-		async function fetchRestaurant() {
-			try {
-				const res = await fetch(`/api/restaurants/${params.id}`);
-				if (!res.ok) return;
-				const data = await res.json();
-				const parsedRestaurant = data?.data?.restaurant || data?.restaurant || null;
-				if (parsedRestaurant) {
-					setRestaurant(parsedRestaurant);
-					setError(null);
-				}
-			} catch (err: any) {
-				console.warn("fetch /api/restaurants failed, fallback to AMap detail", err?.message || err);
-			} finally {
-				// Keep loading state for AMap detail fallback.
-			}
-		}
-		fetchRestaurant();
-	}, [params.id]);
+    // Fetch Restaurant Data
+    useEffect(() => {
+        async function fetchRestaurant() {
+            try {
+                const res = await fetch(`/api/restaurants/${params.id}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const parsedRestaurant = data?.data?.restaurant || data?.restaurant || null;
+                if (parsedRestaurant) {
+                    setRestaurant(parsedRestaurant);
+                    setError(null);
+                }
+            } catch (err: unknown) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                console.warn("fetch /api/restaurants failed, fallback to AMap detail", (err as any)?.message || err);
+            } finally {
+                // Keep loading state for AMap detail fallback.
+            }
+        }
+        fetchRestaurant();
+    }, [params.id]);
 
 	// Load Reviews from LocalStorage or Mock
 	useEffect(() => {
@@ -91,64 +93,66 @@ export default function RestaurantDetailPage({ params }: RestaurantDetailPagePro
 				extensions: "all", // Rich data
 			});
 
-			placeSearch.getDetails(params.id, (status: string, result: any) => {
-				if (status === "complete" && result.poiList && result.poiList.pois.length > 0) {
-					const poi = result.poiList.pois[0];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            placeSearch.getDetails(params.id, (status: string, result: any) => {
+                if (status === "complete" && result.poiList && result.poiList.pois.length > 0) {
+                    const poi = result.poiList.pois[0];
 
-					// Consistent Heuristic (same as useHomeData)
-					const idSum = poi.id.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-					const mockPrice = 15 + (idSum % 85);
-					const mockRating = (3.5 + (idSum % 15) / 10).toFixed(1);
-					const rating = poi.biz_ext?.rating && parseFloat(poi.biz_ext.rating) > 0 ? poi.biz_ext.rating : mockRating;
-					const cost = poi.biz_ext?.cost && parseInt(poi.biz_ext.cost) > 0 ? poi.biz_ext.cost : mockPrice;
+                    // Consistent Heuristic (same as useHomeData)
+                    const idSum = poi.id.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+                    const mockPrice = 15 + (idSum % 85);
+                    const mockRating = (3.5 + (idSum % 15) / 10).toFixed(1);
+                    const rating = poi.biz_ext?.rating && parseFloat(poi.biz_ext.rating) > 0 ? poi.biz_ext.rating : mockRating;
+                    const cost = poi.biz_ext?.cost && parseInt(poi.biz_ext.cost) > 0 ? poi.biz_ext.cost : mockPrice;
 
-					const data: Restaurant = {
-						id: poi.id,
-						name: poi.name,
-						category: poi.type.split(";")[2] || "餐饮",
-						subcategory: poi.type.split(";")[1],
-						avgPrice: parseInt(cost),
-						rating: parseFloat(rating),
-						lat: poi.location?.lat,
-						lng: poi.location?.lng,
-						distances: [], // Calculated externally usually
-						address: poi.address,
-						tags: poi.tag ? poi.tag.split(",") : [poi.type.split(";").pop()],
-						// Richer fields from deep info or mocks
-						scenes: [],
-						coverImage: poi.photos && poi.photos.length > 0 ? poi.photos[0].url : undefined,
-						reviewCount: poi.biz_ext?.review_count ? parseInt(poi.biz_ext.review_count) : idSum % 999,
-						studentCount: (idSum % 5000) + 100,
-						mustOrderDishes: ["招牌菜", "热销榜 first"], // Mock
-						openHours: poi.biz_ext?.open_time || "10:00-22:00",
-						isOpenLateNight: false,
-						phone: poi.tel,
-					};
-					setRestaurant(data);
-					setError(null);
-				} else {
-					if (!restaurant) {
-						setError("未找到该餐厅信息");
-					}
-				}
-				setLoading(false);
-			});
-		};
+                    const data: Restaurant = {
+                        id: poi.id,
+                        name: poi.name,
+                        category: poi.type.split(";")[2] || "餐饮",
+                        subcategory: poi.type.split(";")[1],
+                        avgPrice: parseInt(cost),
+                        rating: parseFloat(rating),
+                        lat: poi.location?.lat,
+                        lng: poi.location?.lng,
+                        distances: [], // Calculated externally usually
+                        address: poi.address,
+                        tags: poi.tag ? poi.tag.split(",") : [poi.type.split(";").pop()],
+                        // Richer fields from deep info or mocks
+                        scenes: [],
+                        coverImage: poi.photos && poi.photos.length > 0 ? poi.photos[0].url : undefined,
+                        reviewCount: poi.biz_ext?.review_count ? parseInt(poi.biz_ext.review_count) : idSum % 999,
+                        studentCount: (idSum % 5000) + 100,
+                        mustOrderDishes: ["招牌菜", "热销榜 first"], // Mock
+                        openHours: poi.biz_ext?.open_time || "10:00-22:00",
+                        isOpenLateNight: false,
+                        phone: poi.tel,
+                    };
+                    setRestaurant(data);
+                    setError(null);
+                } else {
+                    if (!restaurant) {
+                        setError("未找到该餐厅信息");
+                    }
+                }
+                setLoading(false);
+            });
+        };
 
-		// Check AMap
-		if (typeof window !== "undefined") {
-			const checkMap = setInterval(() => {
-				if (window.AMap) {
-					clearInterval(checkMap);
-					fetchDetails();
-				}
-			}, 500);
-			setTimeout(() => {
-				clearInterval(checkMap);
-				if (loading) setLoading(false);
-			}, 5000);
-		}
-	}, [params.id]);
+        // Check AMap
+        if (typeof window !== "undefined") {
+            const checkMap = setInterval(() => {
+                if (window.AMap) {
+                    clearInterval(checkMap);
+                    fetchDetails();
+                }
+            }, 500);
+            setTimeout(() => {
+                clearInterval(checkMap);
+                if (loading) setLoading(false);
+            }, 5000);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [params.id]);
 
 	if (loading) {
 		return (

@@ -1,13 +1,13 @@
 "use client";
 
-import { Bot, ChevronDown, Heart, MapPin, Moon, Search, Sparkles, User, Users, Wallet, Coffee, Zap, Pizza, Utensils, Map as MapIcon, ArrowRight } from "lucide-react";
+import { ArrowRight, Bot, ChevronDown, Coffee, Heart, Map as MapIcon, MapPin, Moon, Pizza, Search, Sparkles, User, Users, Utensils, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import RandomPicker from "@/components/business/RandomPicker";
 import RestaurantCard from "@/components/business/restaurantCard";
-import RandomPicker from "@/components/business/RandomPicker"; // New Import
-import { useLocation } from "@/hooks/useLocation";
 import { useHomeData } from "@/hooks/useHomeData";
+import { useLocation } from "@/hooks/useLocation";
 import { cn } from "@/lib/utils";
 
 // More categories for the grid

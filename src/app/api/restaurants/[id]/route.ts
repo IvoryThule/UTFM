@@ -1,6 +1,7 @@
-import { getRestaurantDetail } from "@backend/api/restaurants";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+
+import { prisma } from "@/lib/prisma";
+import { getRestaurantDetail } from "@backend/api/restaurants";
 
 interface RouteContext {
 	params: {

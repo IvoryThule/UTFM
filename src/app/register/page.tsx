@@ -1,10 +1,12 @@
 "use client";
 
-import { useUser } from "@/hooks/useUser";
+
 import { ArrowLeft, Lock, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+import { useUser } from "@/hooks/useUser";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -13,6 +15,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
@@ -37,7 +40,7 @@ export default function RegisterPage() {
       const data = await res.json();
       login(data.user);
       router.push("/profile");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("Registration failed (Username taken?)");
     } finally {
       setLoading(false);
