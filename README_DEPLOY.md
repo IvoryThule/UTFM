@@ -49,11 +49,11 @@
 
 2.  修改 `.env` 文件：
     ```ini
-    # 设置应用监听的宿主机端口（例如改为 3001）
-    APP_PORT=3001
+    # 设置应用监听的宿主机端口（例如改为 8081）
+    APP_PORT=8081
     
     # 设置您的域名或 IP（NextAuth 需要知道对外访问地址）
-    NEXTAUTH_URL=http://your-server-ip:3001
+    NEXTAUTH_URL=http://your-server-ip:8081
     
     # 生成随机密钥
     NEXTAUTH_SECRET=changeme
